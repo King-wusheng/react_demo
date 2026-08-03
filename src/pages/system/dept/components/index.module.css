@@ -1,0 +1,4 @@
+.proTableFixedScroll :global(.ant-table-body) {
+    max-height: unset !important;
+    height: calc(100vh - 400px) !important;
+  }

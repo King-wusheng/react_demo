@@ -1,24 +1,37 @@
-import { PlusOutlined } from '@ant-design/icons';
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import { fetchUser } from "@/store/userSlice";
+import { PlusOutlined } from "@ant-design/icons";
 import {
   type ActionType,
   type ProColumns,
+  type ProDescriptionsItemProps,
+  FooterToolbar,
+  ProDescriptions,
   ProTable,
-} from '@ant-design/pro-components';
-import { request, useModel } from '@umijs/max';
-import { App, Button, Input, Space, Tag } from 'antd';
-import { useRef } from 'react';
-import { removeRule } from '@/services/ant-design-pro/api';
-import RuleForm from '../components/listForm';
-
-type RuleItem = {
-  key: number;
-  name: string;
-  desc: string;
-  status: number;
-};
-
+} from "@ant-design/pro-components";
+import { useAccess, useModel } from "@umijs/max";
+import { App, Button, Drawer, Input, Space, Tag } from "antd";
+import { useEffect, useRef, useState } from "react";
+import RuleForm from "../components/listForm";
+import type { RuleItem } from "./data";
+import "./index.css";
+import { fetchRuleList, removeRules } from "./service";
 const PracticeList = () => {
-  const { initialState } = useModel('@@initialState');
+  const access = useAccess();
+  const { initialState } = useModel("@@initialState");
+  const count = useAppSelector((s) => {
+    return s.userInfo.value;
+  });
+  console.log("count=====", count);
+  const dispatch = useAppDispatch();
+  useEffect(() => {
+    // dispatch(getUserInfo());
+    try {
+      dispatch(fetchUser(1)).unwrap();
+    } catch (err) {
+      console.log(err);
+    }
+  }, []);
   const {
     keyword,
     setKeyword,
@@ -26,43 +39,89 @@ const PracticeList = () => {
     recordAction,
     lastAction,
     setLastAction,
-  } = useModel('practice');
+  } = useModel("practice");
   const { message } = App.useApp();
+  // 本地状态
   const actionRef = useRef<ActionType>(null);
+  const [selectedRows, setSelectedRows] = useState<RuleItem[]>([]);
+  const [showDetail, setShowDetail] = useState(false);
+  const [currentRow, setCurrentRow] = useState<RuleItem>();
+  // 批量删除
+  const handleBatchRemove = async () => {
+    if (!selectedRows.length) {
+      message.error("请选择要删除的行");
+      return;
+    }
+    console.log("selectedRows=====", selectedRows);
+  };
 
   const columns: ProColumns<RuleItem>[] = [
     {
-      title: '名称',
-      dataIndex: 'name', // 会出现在搜索区 + 表格列
-    },
-    {
-      title: '描述',
-      dataIndex: 'desc',
-      search: false,
-    },
-    {
-      title: '状态',
-      dataIndex: 'status',
-      valueType: 'select',
-      valueEnum: {
-        0: { text: '关闭', status: 'Default' },
-        1: { text: '运行中', status: 'Processing' },
-        2: { text: '已上线', status: 'Success' },
-        3: { text: '异常', status: 'Error' },
+      title: "名称",
+      dataIndex: "name", // 会出现在搜索区 + 表格列
+      render: (text, record) => (
+        <Button
+          style={{ padding: 0 }}
+          type="link"
+          onClick={() => {
+            setCurrentRow(record);
+            setShowDetail(true);
+          }}
+        >
+          {text}
+        </Button>
+      ),
+      fieldProps: {
+        placeholder: "请输入名称",
+        allowClear: true,
       },
     },
     {
-      title: '操作',
-      dataIndex: 'action',
+      title: "描述",
+      dataIndex: "desc",
+      search: false,
+    },
+    {
+      title: "状态",
+      dataIndex: "status",
+      valueType: "select",
+      align: "center",
+      valueEnum: {
+        0: { text: "关闭", status: "Default" },
+        1: { text: "运行中", status: "Processing" },
+        2: { text: "已上线", status: "Success" },
+        3: { text: "异常", status: "Error" },
+      },
+    },
+    {
+      title: "创建时间",
+      dataIndex: "createdAt",
+      valueType: "dateRange",
+      hideInTable: true,
+      search: {
+        // transform 用于将表单中 dateRange 的值转为接口所需的参数格式
+        // value 是表单中 dateRange 的值，格式为 [startTime, endTime]
+        transform: (value: any) => {
+          return {
+            startTime: value[0],
+            endTime: value[1],
+          };
+        },
+      },
+    },
+    {
+      title: "操作",
+      dataIndex: "action",
+      align: "center",
       render: (text, record) => {
         return (
-          <div>
+          <div className="flexOption">
             <RuleForm
               trigger={
                 <Button
                   color="primary"
                   variant="link"
-                  onClick={() => recordAction('点击编辑')}
+                  onClick={() => recordAction("点击编辑")}
                 >
                   编辑
                 </Button>
@@ -70,30 +129,31 @@ const PracticeList = () => {
               record={record}
               onSuccess={() => {
                 actionRef.current?.reload();
-                recordAction('编辑一条');
+                recordAction("编辑一条");
               }}
             />
 
-            <Button
-              color="danger"
-              variant="text"
-              onClick={async () => {
-                await removeRule({ key: [record.key] });
-                recordAction(`删除了 ${record.name}`);
-                message.success('删除成功');
-                actionRef.current?.reload();
-              }}
-            >
-              删除
-            </Button>
+            {access.canAdmin && (
+              <Button
+                color="danger"
+                variant="text"
+                onClick={async () => {
+                  await removeRules([record.key]);
+                  recordAction(`删除了 ${record.name}`);
+                  message.success("删除成功");
+                  actionRef.current?.reload();
+                }}
+              >
+                删除
+              </Button>
+            )}
           </div>
         );
       },
     },
   ];
   const user = initialState?.currentUser;
-  console.log('用户信息', user);
-  console.log('usemodel', keyword, lastAction);
+
   return (
     <div>
       <Space style={{ marginBottom: 12 }} wrap>
@@ -109,13 +169,34 @@ const PracticeList = () => {
         <Button onClick={clearKeyword}>清空关键词</Button>
         {lastAction && <Tag color="blue">最近操作：{lastAction}</Tag>}
       </Space>
+      {selectedRows.length > 0 && (
+        <FooterToolbar
+          extra={
+            <span>
+              已选 <strong>{selectedRows.length}</strong> 项
+            </span>
+          }
+        >
+          {access.canAdmin && (
+            <Button danger onClick={handleBatchRemove}>
+              批量删除
+            </Button>
+          )}
+        </FooterToolbar>
+      )}
       <ProTable<RuleItem>
+        rowSelection={{
+          onChange: (selectedRowKeys, selectedRows) => {
+            console.log("selectedRowKeys=====", selectedRowKeys);
+            console.log("selectedRows=====", selectedRows);
+            setSelectedRows(selectedRows);
+          },
+        }}
         actionRef={actionRef}
         rowKey="key"
-        headerTitle="练习列表"
         columns={columns}
         sticky
-        scroll={{ y: 'calc(100vh - 460px)' }}
+        scroll={{ y: "calc(100vh - 460px)" }}
         toolBarRender={() => [
           <RuleForm
             key="add"
@@ -123,33 +204,36 @@ const PracticeList = () => {
               <Button
                 icon={<PlusOutlined />}
                 type="primary"
-                onClick={() => recordAction('点击新增')}
+                onClick={() => recordAction("点击新增")}
               >
                 新增
               </Button>
             }
             onSuccess={() => {
               actionRef.current?.reload();
-              recordAction('新增一条');
+              recordAction("新增一条");
             }}
           />,
         ]}
-        request={async (params) => {
-          // params 里通常有：current, pageSize, name, status ...
-          const res = await request<{ data: RuleItem[]; total: number }>(
-            '/api/rule',
-            {
-              method: 'GET',
-              params,
-            },
-          );
-          return {
-            data: res.data || [],
-            success: true,
-            total: res.total || 0,
-          };
-        }}
+        request={fetchRuleList}
       />
+      <Drawer
+        title="详情"
+        open={showDetail}
+        onClose={() => {
+          setShowDetail(false);
+          setCurrentRow(undefined);
+        }}
+      >
+        {currentRow && (
+          <ProDescriptions<RuleItem>
+            column={1}
+            title={currentRow.name}
+            dataSource={currentRow}
+            columns={columns as ProDescriptionsItemProps<RuleItem>[]}
+          />
+        )}
+      </Drawer>
     </div>
   );
 };

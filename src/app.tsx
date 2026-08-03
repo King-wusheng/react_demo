@@ -1,11 +1,11 @@
-import { LinkOutlined } from '@ant-design/icons';
-import type { Settings as LayoutSettings } from '@ant-design/pro-components';
-import { SettingDrawer } from '@ant-design/pro-components';
-import type { RequestConfig, RunTimeLayoutConfig } from '@umijs/max';
-import { history, Link } from '@umijs/max';
-import dayjs from 'dayjs';
-import relativeTime from 'dayjs/plugin/relativeTime';
-import React from 'react';
+import { LinkOutlined } from "@ant-design/icons";
+import type { Settings as LayoutSettings } from "@ant-design/pro-components";
+import { SettingDrawer } from "@ant-design/pro-components";
+import type { RequestConfig, RunTimeLayoutConfig } from "@umijs/max";
+import { history, Link } from "@umijs/max";
+import dayjs from "dayjs";
+import relativeTime from "dayjs/plugin/relativeTime";
+import React from "react";
 
 // Initialize dayjs plugins globally
 dayjs.extend(relativeTime);
@@ -18,13 +18,15 @@ import {
   LangDropdown,
   OfflineBanner,
   VersionDropdown,
-} from '@/components';
-import { currentUser as queryCurrentUser } from '@/services/ant-design-pro/api';
-import defaultSettings from '../config/defaultSettings';
-import { errorConfig } from './requestErrorConfig';
+} from "@/components";
+import { currentUser as queryCurrentUser } from "@/services/ant-design-pro/api";
+import { Provider } from "react-redux";
+import defaultSettings from "../config/defaultSettings";
+import { errorConfig } from "./requestErrorConfig";
+import { store } from "./store";
 
-const isDev = process.env.NODE_ENV === 'development';
-const loginPath = '/user/login';
+const isDev = process.env.NODE_ENV === "development";
+const loginPath = "/user/login";
 
 /**
  * @see https://umijs.org/docs/api/runtime-config#getinitialstate
@@ -45,7 +47,7 @@ export async function getInitialState(): Promise<{
     } catch (_error) {
       const { pathname, search, hash } = history.location;
       history.replace(
-        `${loginPath}?redirect=${encodeURIComponent(pathname + search + hash)}`,
+        `${loginPath}?redirect=${encodeURIComponent(pathname + search + hash)}`
       );
     }
     return undefined;
@@ -53,8 +55,8 @@ export async function getInitialState(): Promise<{
   // 如果不是登录页面，执行
   const { location } = history;
   if (
-    ![loginPath, '/user/register', '/user/register-result'].includes(
-      location.pathname,
+    ![loginPath, "/user/register", "/user/register-result"].includes(
+      location.pathname
     )
   ) {
     const currentUser = await fetchUserInfo();
@@ -101,7 +103,7 @@ export const layout: RunTimeLayoutConfig = ({
     },
     avatarProps: {
       src: initialState?.currentUser?.avatar,
-      title: 'ProUser',
+      title: "ProUser",
       render: (_, avatarChildren) => (
         <AvatarDropdown>{avatarChildren}</AvatarDropdown>
       ),
@@ -115,28 +117,30 @@ export const layout: RunTimeLayoutConfig = ({
       // 如果没有登录，重定向到 login
       if (!initialState?.currentUser && location.pathname !== loginPath) {
         history.replace(
-          `${loginPath}?redirect=${encodeURIComponent(location.pathname + location.search + location.hash)}`,
+          `${loginPath}?redirect=${encodeURIComponent(
+            location.pathname + location.search + location.hash
+          )}`
         );
       }
     },
     bgLayoutImgList: [
       {
-        src: 'https://mdn.alipayobjects.com/yuyan_qk0oxh/afts/img/D2LWSqNny4sAAAAAAAAAAAAAFl94AQBr',
+        src: "https://mdn.alipayobjects.com/yuyan_qk0oxh/afts/img/D2LWSqNny4sAAAAAAAAAAAAAFl94AQBr",
         left: 85,
         bottom: 100,
-        height: '303px',
+        height: "303px",
       },
       {
-        src: 'https://mdn.alipayobjects.com/yuyan_qk0oxh/afts/img/C2TWRpJpiC0AAAAAAAAAAAAAFl94AQBr',
+        src: "https://mdn.alipayobjects.com/yuyan_qk0oxh/afts/img/C2TWRpJpiC0AAAAAAAAAAAAAFl94AQBr",
         bottom: -68,
         right: -45,
-        height: '303px',
+        height: "303px",
       },
       {
-        src: 'https://mdn.alipayobjects.com/yuyan_qk0oxh/afts/img/F6vSTbj8KpYAAAAAAAAAAAAAFl94AQBr',
+        src: "https://mdn.alipayobjects.com/yuyan_qk0oxh/afts/img/F6vSTbj8KpYAAAAAAAAAAAAAFl94AQBr",
         bottom: 0,
         left: 0,
-        width: '331px',
+        width: "331px",
       },
     ],
     links: isDev
@@ -190,15 +194,16 @@ export const layout: RunTimeLayoutConfig = ({
  * @doc https://umijs.org/docs/max/request#配置
  */
 export const request: RequestConfig = {
-  baseURL: isDev ? '' : 'https://pro-api.ant-design-demo.workers.dev',
+  baseURL: isDev ? "" : "https://pro-api.ant-design-demo.workers.dev",
   ...errorConfig,
 };
-
 export function rootContainer(container: React.ReactNode) {
   return (
     <>
-      <OfflineBanner />
-      <ErrorBoundary>{container}</ErrorBoundary>
+      <Provider store={store}>
+        <OfflineBanner />
+        <ErrorBoundary>{container}</ErrorBoundary>
+      </Provider>
     </>
   );
 }
